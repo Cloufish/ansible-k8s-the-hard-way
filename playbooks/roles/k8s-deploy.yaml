@@ -5,3 +5,17 @@
   - ansible.builtin.import_role:
       name: host-defaults
 
+- hosts: k8s_hard_jumpbox
+  tags: jumpbox
+  tasks:
+  - ansible.builtin.include_vars: "{{ playbook_dir }}/config.yml"
+  - ansible.builtin.import_role:
+      name: jumpbox
+
+- hosts: k8s
+  tags: compute-resources
+  tasks:
+  - ansible.builtin.include_vars: "{{ playbook_dir }}/config.yml"
+  - ansible.builtin.import_role:
+      name: compute-resources
+
