@@ -1,0 +1,7 @@
+- hosts: k8s
+  tags: host-defaults
+  tasks:
+  - ansible.builtin.include_vars: "{{ playbook_dir }}/config.yml"
+  - ansible.builtin.import_role:
+      name: host-defaults
+

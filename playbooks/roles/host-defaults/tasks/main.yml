@@ -1,0 +1,103 @@
+# trunk-ignore-all(prettier)
+---
+- name: Check if auto update is enabled
+  ansible.builtin.stat:
+    path: /etc/apt/apt.conf.d/20auto-upgrades
+  register: autoupdate
+
+- name: Disable auto update
+  when: autoupdate.stat.exists
+  become: true
+  become_method: sudo
+  ansible.builtin.file:
+    path: /etc/apt/apt.conf.d/20auto-upgrades
+    state: absent
+
+- name: Fix Ubuntu 18.04 < pointing to cache in /etc/resolv.conf
+  ansible.builtin.command: sudo ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+
+- name: Set Europe/Warsaw timezone
+  become: true
+  ansible.builtin.command: timedatectl set-timezone Europe/Warsaw
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600 # Optional: cache valid for 1 hour to avoid updating cache too frequently
+  become: true
+
+- name: Install NTP
+  ansible.builtin.apt:
+    name: ntp
+    state: present
+  become: true
+
+- name: Enable and start NTP service
+  ansible.builtin.systemd:
+    name: ntp
+    enabled: true
+    state: started
+  become: true
+
+- name: Add DNS to resolv.conf
+  become: true
+  ansible.builtin.template:
+    src: resolv.conf
+    dest: /etc/resolv.conf
+
+- name: Install linux-modules-extra package
+  become: true
+  ansible.builtin.apt:
+    name: "linux-modules-extra-{{ ansible_kernel }}-generic"
+    state: present
+    update_cache: true
+  ignore_errors: true
+
+- name: Wait for any possibly running unattended upgrade to finish
+  when: autoupdate.stat.exists
+  become: true
+  become_method: sudo
+  ansible.builtin.raw: systemd-run --property="After=apt-daily.service apt-daily-upgrade.service" --wait /bin/true
+- name: Wait for server to restart
+  become: true
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ DELAY_VAL }}"
+  ignore_errors: true
+
+- name: Upgrade all packages to the latest version
+  become: true
+  become_method: sudo
+  ansible.builtin.apt:
+    upgrade: dist
+    update_cache: true
+
+- name: Verify system dependencies
+  become: true
+  become_method: sudo
+  ansible.builtin.apt:
+    pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg-agent # For apt-key add
+      - software-properties-common # For add-apt-repository "deb ..."
+      - python3-pip
+      - apache2-utils
+      - net-tools
+      - sshpass
+      - python3-kubernetes
+      - python3-jsonpatch
+    state: present
+    force_apt_get: true
+    update_cache: true
+
+- name: 'Install Python Ansible requirements (For Kubernetes)'
+  pip:
+    name: "{{ requirement }}"
+    extra_args: "--user --break-system-packages"
+  vars:
+    ansible_python_interpreter: "/usr/bin/python3"
+  loop:
+    - "pyyaml"
+  loop_control:
+    loop_var: requirement
