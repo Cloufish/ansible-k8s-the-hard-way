@@ -1,1 +1,208 @@
 ---
+- name: Verify system dependencies
+  become: true
+  become_method: sudo
+  ansible.builtin.apt:
+    pkg:
+      - wget
+      - curl
+      - vim
+      - openssl
+    state: present
+    update_cache: true
+
+- name: Register hardware architecture
+  shell: dpkg --print-architecture
+  register: architecture
+
+- name: Ensure downloads directory exists
+  ansible.builtin.file: 
+    path: /home/{{ ansible_user }}/downloads
+    state: directory
+
+- name: Set k8s dependency binaries urls in a list for AMD64 
+  ansible.builtin.set_fact:
+    urls:
+      - https://dl.k8s.io/v1.32.3/bin/linux/amd64/kubectl
+      - https://dl.k8s.io/v1.32.3/bin/linux/amd64/kube-apiserver
+      - https://dl.k8s.io/v1.32.3/bin/linux/amd64/kube-controller-manager
+      - https://dl.k8s.io/v1.32.3/bin/linux/amd64/kube-scheduler
+      - https://dl.k8s.io/v1.32.3/bin/linux/amd64/kube-proxy
+      - https://dl.k8s.io/v1.32.3/bin/linux/amd64/kubelet
+      - https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.32.0/crictl-v1.32.0-linux-amd64.tar.gz
+      - https://github.com/opencontainers/runc/releases/download/v1.3.0-rc.1/runc.amd64
+      - https://github.com/containernetworking/plugins/releases/download/v1.6.2/cni-plugins-linux-amd64-v1.6.2.tgz
+      - https://github.com/containerd/containerd/releases/download/v2.1.0-beta.0/containerd-2.1.0-beta.0-linux-amd64.tar.gz
+      - https://github.com/etcd-io/etcd/releases/download/v3.6.0-rc.3/etcd-v3.6.0-rc.3-linux-amd64.tar.gz
+  when: architecture.stdout == "amd64"
+
+- name: Set k8s dependency binaries urls in a list for ARM64
+  ansible.builtin.set_fact:
+    urls: 
+      - https://dl.k8s.io/v1.32.3/bin/linux/arm64/kubectl
+      - https://dl.k8s.io/v1.32.3/bin/linux/arm64/kube-apiserver
+      - https://dl.k8s.io/v1.32.3/bin/linux/arm64/kube-controller-manager
+      - https://dl.k8s.io/v1.32.3/bin/linux/arm64/kube-scheduler
+      - https://dl.k8s.io/v1.32.3/bin/linux/arm64/kube-proxy
+      - https://dl.k8s.io/v1.32.3/bin/linux/arm64/kubelet
+      - https://github.com/kubernetes-sigs/cri-tools/releases/download/v1.32.0/crictl-v1.32.0-linux-arm64.tar.gz
+      - https://github.com/opencontainers/runc/releases/download/v1.3.0-rc.1/runc.arm64
+      - https://github.com/containernetworking/plugins/releases/download/v1.6.2/cni-plugins-linux-arm64-v1.6.2.tgz
+      - https://github.com/containerd/containerd/releases/download/v2.1.0-beta.0/containerd-2.1.0-beta.0-linux-arm64.tar.gz
+      - https://github.com/etcd-io/etcd/releases/download/v3.6.0-rc.3/etcd-v3.6.0-rc.3-linux-arm64.tar.gz
+  when: architecture.stdout == "arm64"
+
+- name: Download the binaries from urls dictionary
+  ansible.builtin.get_url: 
+    url: "{{ item }}"
+    dest: "/home/{{ ansible_user }}/downloads/"
+    mode: '0644'
+    force: false
+  loop: "{{ urls }}"
+
+- name: Ensure subdirectories exists
+  ansible.builtin.file: 
+    path: /home/{{ ansible_user }}/downloads/{{ item }}
+    state: directory
+  loop: 
+    - "client"
+    - "controller"
+    - "worker"
+    - "cni-plugins"
+
+- name: Find all archive files in the directory
+  find:
+    paths: /home/{{ ansible_user }}/downloads
+    patterns: '*.tar.gz'
+    use_regex: false
+  register: archive_files
+
+- name: Unarchive each .tar.gz archive file
+  unarchive:
+    src: "{{ item.path }}"
+    dest: "/home/{{ ansible_user }}/downloads/"
+    remote_src: true
+  loop: "{{ archive_files.files }}"
+  when: archive_files.matched > 0
+
+- name: Unarchive  .tgz cni-plugins archive file
+  unarchive:
+    src: "/home/{{ ansible_user }}/downloads/cni-plugins-linux-{{ architecture.stdout }}-v1.6.2.tgz"
+    dest: "/home/{{ ansible_user }}/downloads/cni-plugins"
+    remote_src: true
+
+- name: Move etcdctl, kubectl binaries
+  ansible.builtin.copy:
+    src: /home/{{ ansible_user }}/downloads/{{ item }}
+    dest: /home/{{ ansible_user }}/downloads/client/
+    remote_src: true
+  loop:
+    - "etcd-v3.6.0-rc.3-linux-{{ architecture.stdout }}/etcdctl"
+    - "kubectl"
+
+- name: Move etcd,kube-apiserver, kube-controller-manager, kube-scheduler binaries
+  ansible.builtin.copy:
+    src: /home/{{ ansible_user }}/downloads/{{ item }}
+    dest: /home/{{ ansible_user }}/downloads/controller/
+    remote_src: true
+  loop:
+    - "etcd-v3.6.0-rc.3-linux-{{ architecture.stdout }}/etcd"
+    - "kube-apiserver"
+    - "kube-controller-manager"
+    - "kube-scheduler"
+
+- name: kubelet,kube-proxy
+  ansible.builtin.copy:
+    src: /home/{{ ansible_user }}/downloads/{{ item }}
+    dest: /home/{{ ansible_user }}/downloads/worker/
+    remote_src: true
+  loop:
+    - "kubelet"
+    - "kube-proxy"
+    - "bin/containerd"
+    - "bin/containerd-shim-runc-v2"
+    - "bin/containerd-stress"
+    - "bin/ctr"
+    - "crictl"
+
+- name: Copy runc
+  ansible.builtin.copy:
+    src: /home/{{ ansible_user }}/downloads/runc.{{ architecture.stdout }}
+    dest: /home/{{ ansible_user }}/downloads/worker/runc
+    remote_src: true  
+
+- name: Find all files in the directory
+  find:
+    paths: /home/{{ ansible_user }}/downloads/client
+    file_type: file
+  register: found_files
+
+- name: Set execute permission on each file
+  file:
+    path: "{{ item.path }}"
+    mode: '0755'
+  loop: "{{ found_files.files }}"
+
+- name: Find all files in the directory
+  find:
+    paths: /home/{{ ansible_user }}/downloads/cni-plugins
+    file_type: file
+  register: found_files
+
+- name: Set execute permission on each file
+  file:
+    path: "{{ item.path }}"
+    mode: '0755'
+  loop: "{{ found_files.files }}"
+
+- name: Find all files in the directory
+  find:
+    paths: /home/{{ ansible_user }}/downloads/controller
+    file_type: file
+  register: found_files
+
+- name: Set execute permission on each file
+  file:
+    path: "{{ item.path }}"
+    mode: '0755'
+  loop: "{{ found_files.files }}"
+
+- name: Find all files in the directory
+  find:
+    paths: /home/{{ ansible_user }}/downloads/worker
+    file_type: file
+  register: found_files
+
+- name: Set execute permission on each file
+  file:
+    path: "{{ item.path }}"
+    mode: '0755'
+  loop: "{{ found_files.files }}"
+
+- name: Move kubectl to /usr/local/bin
+  ansible.builtin.copy:
+    src: /home/{{ ansible_user }}/downloads/client/kubectl
+    dest: /usr/local/bin/
+    remote_src: true
+  become: true
+
+- name: Set execute permission on each file
+  file:
+    path: "/usr/local/bin/kubectl"
+    mode: '0755'
+
+- name: Clean up # Let's use shell this time ;) TODO: Make this cleaner
+  shell: | 
+    rm -rf /home/{{ ansible_user }}/downloads/*gz
+    rm -rf /home/{{ ansible_user }}/downloads/bin
+    rm -rf /home/{{ ansible_user }}/downloads/etcd-v3.6.0-rc.3-linux-{{ architecture.stdout }}
+    rm /home/{{ ansible_user }}/downloads/kube-apiserver \
+      /home/{{ ansible_user }}/downloads/kube-controller-manager \ 
+      /home/{{ ansible_user }}/downloads/kube-proxy \
+      /home/{{ ansible_user }}/downloads/kube-scheduler \
+      /home/{{ ansible_user }}/downloads/kubectl \
+      /home/{{ ansible_user }}/downloads/kubelet \
+      /home/{{ ansible_user }}/downloads/crictl \
+      /home/{{ ansible_user }}/downloads/runc.{{ architecture.stdout }} 
+  ignore_errors: true
+  when: cleanup # If cleanup=true
