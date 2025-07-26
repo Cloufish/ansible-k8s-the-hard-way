@@ -190,6 +190,7 @@
   file:
     path: "/usr/local/bin/kubectl"
     mode: '0755'
+  become: true
 
 - name: Clean up # Let's use shell this time ;) TODO: Make this cleaner
   shell: | 

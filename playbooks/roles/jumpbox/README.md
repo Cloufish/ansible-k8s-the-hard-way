@@ -51,6 +51,7 @@ k8s@hard-k8s-jumpbox:~/downloads$ tree
 And allow you to run kubectl on the jumpbox 
 
 ```sh
-
-
+k8s@hard-k8s-jumpbox:~$ kubectl version
+Client Version: v1.32.3
+Kustomize Version: v5.5.0
 ```
