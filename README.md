@@ -1,4 +1,4 @@
-"# ansible-k8s-the-hard-way" 
+# ansible-k8s-the-hard-way
 
 
 
