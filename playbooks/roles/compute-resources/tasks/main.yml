@@ -1,1 +1,22 @@
 ---
+- name: Render hostname.txt from inventory
+  template:
+    src: hostnames.j2
+    dest: /home/{{ ansible_user }}/hostnames.txt
+
+- name: Read contents of remote hosts file
+  ansible.builtin.slurp:
+    src: /home/{{ ansible_user }}/hostnames.txt
+  register: slurped_hosts
+
+- name: Append hosts content to /etc/hosts using blockinfile
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    block: "{{ slurped_hosts['content'] | b64decode }}"
+    marker: "# {mark} Kubernetes The Hard Way"
+  become: true
+
+- name: Cleanup /home/{{ ansible_user }}/hostnames.txt
+  file: 
+    path: rm /home/{{ ansible_user }}/hostnames.txt
+    state: absent

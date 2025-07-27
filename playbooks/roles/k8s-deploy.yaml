@@ -1,4 +1,4 @@
-- hosts: k8s
+- hosts: k8s_hard
   tags: host-defaults
   tasks:
   - ansible.builtin.import_role:
@@ -10,9 +10,14 @@
   - ansible.builtin.import_role:
       name: jumpbox
 
-- hosts: k8s
+- hosts: k8s_hard
   tags: compute-resources
   tasks:
   - ansible.builtin.import_role:
       name: compute-resources
 
+- hosts: k8s_hard
+  tags: certificate-authority
+  tasks:
+  - ansible.builtin.import_role:
+      name: certificate-authority

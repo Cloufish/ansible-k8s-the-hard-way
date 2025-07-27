@@ -1,1 +1,97 @@
 ---
+- name: Make sure directory /home/{{ ansible_user }}/cert exists
+  file:
+    path: /home/{{ ansible_user }}/cert
+    state: directory
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Copy ca.conf
+  template:
+    src: ca.conf
+    dest: /home/{{ ansible_user }}/cert/
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Generate openssl certificate and private key
+  shell: | 
+      openssl genrsa -out /home/{{ ansible_user }}/cert/ca.key 4096
+      openssl req -x509 -new -sha512 -noenc \
+        -key /home/{{ ansible_user }}/cert/ca.key -days 3653 \
+        -config /home/{{ ansible_user }}/cert/ca.conf \
+        -out /home/{{ ansible_user }}/cert/ca.crt
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Generate openssl client and server certificate for each Kubernetes component and client certificate for the Kubernetes admin user
+  shell: |
+    openssl genrsa -out "/home/{{ ansible_user }}/cert/{{ item }}.key" 4096
+
+    openssl req -new -key "/home/{{ ansible_user }}/cert/{{ item }}.key" -sha256 \
+      -config "/home/{{ ansible_user }}/cert/ca.conf" -section {{ item }} \
+      -out "/home/{{ ansible_user }}/cert/{{ item }}.csr"
+
+    openssl x509 -req -days 3653 -in "/home/{{ ansible_user }}/cert/{{ item }}.csr" \
+      -copy_extensions copyall \
+      -sha256 -CA "/home/{{ ansible_user }}/cert/ca.crt" \
+      -CAkey "/home/{{ ansible_user }}/cert/ca.key" \
+      -CAcreateserial \
+      -out "/home/{{ ansible_user }}/cert/{{ item }}.crt"
+  loop:
+    - "admin"
+    - "node-0"
+    - "node-1"
+    - "kube-proxy"
+    - "kube-scheduler"
+    - "kube-controller-manager"
+    - "kube-api-server"
+    - "service-accounts"
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: | 
+    Fetch all certificates to ansible controller 
+    Unfortunately it doesn't support recursive fetching
+  fetch:
+    src: /home/{{ ansible_user }}/cert/{{ item }}.crt
+    dest: /tmp/{{ item }}.crt
+  loop: 
+    - "admin"
+    - "node-0"
+    - "node-1"
+    - "kube-proxy"
+    - "kube-scheduler"
+    - "kube-controller-manager"
+    - "kube-api-server"
+    - "service-accounts"
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: | 
+    Fetch all private keys to ansible controller 
+    Unfortunately it doesn't support recursive fetching
+  fetch:
+    src: /home/{{ ansible_user }}/cert/{{ item }}.key
+    dest: /tmp/{{ item }}.key
+  loop: 
+    - "admin"
+    - "node-0"
+    - "node-1"
+    - "kube-proxy"
+    - "kube-scheduler"
+    - "kube-controller-manager"
+    - "kube-api-server"
+    - "service-accounts"
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: | 
+    Fetch all certificate requests to ansible controller 
+    Unfortunately it doesn't support recursive fetching
+  fetch:
+    src: /home/{{ ansible_user }}/cert/{{ item }}.csr
+    dest: /tmp/{{ item }}.csr
+  loop: 
+    - "admin"
+    - "node-0"
+    - "node-1"
+    - "kube-proxy"
+    - "kube-scheduler"
+    - "kube-controller-manager"
+    - "kube-api-server"
+    - "service-accounts"
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]

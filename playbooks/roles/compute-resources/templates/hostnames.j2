@@ -1,0 +1,4 @@
+# IP ADDRESS                FQDN                 HOSTNAME
+{% for host in groups['k8s_hard_server'] + groups['k8s_hard_worker_nodes'] %}
+{{ "%-18s %-30s %s" | format(hostvars[host]['ansible_host'] | default(host), hostvars[host]['fqdn'], hostvars[host]['hostname']) }}
+{% endfor %}
