@@ -131,3 +131,17 @@
     - "kube-controller-manager"
     - "kube-scheduler"
   when: inventory_hostname == groups['k8s_hard_server'][0]
+
+- name: Copy kube-apiserver-to-kubelet.yaml
+  template: 
+    src: kube-apiserver-to-kubelet.yaml
+    dest: /
+  become: true
+
+- name: Apply kube-apiserver-to-kubelet.yaml ClusterRole
+  kubernetes.core.k8s:
+    state: present
+    src: /kube-apiserver-to-kubelet.yaml
+    kubeconfig: /admin.kubeconfig
+  become: true
+
