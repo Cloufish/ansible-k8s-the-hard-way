@@ -1,1 +1,183 @@
 ---
+- name: Make sure /home/{{ ansible_user }}/configs exists
+  file: 
+    path: /home/{{ ansible_user }}/configs
+    state: directory
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Generate a kubeconfig file for the node-0, node-1
+  shell: | 
+    kubectl config set-cluster kubernetes-the-hard-way \
+    --certificate-authority=/home/{{ ansible_user }}/cert/ca.crt \
+    --embed-certs=true \
+    --server=https://server.kubernetes.local:6443 \
+    --kubeconfig=/home/{{ ansible_user }}/configs/{{ item }}.kubeconfig
+
+    kubectl config set-credentials system:node:{{ item }} \
+      --client-certificate=/home/{{ ansible_user }}/cert/{{ item }}.crt \
+      --client-key=/home/{{ ansible_user }}/cert/{{ item }}.key \
+      --embed-certs=true \
+      --kubeconfig=/home/{{ ansible_user }}/configs/{{ item }}.kubeconfig
+
+    kubectl config set-context default \
+      --cluster=kubernetes-the-hard-way \
+      --user=system:node:{{ item }} \
+      --kubeconfig=/home/{{ ansible_user }}/configs/{{ item }}.kubeconfig
+
+    kubectl config use-context default \
+      --kubeconfig=/home/{{ ansible_user }}/configs/{{ item }}.kubeconfig
+  loop:
+    - "node-0"
+    - "node-1"
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Generate a kubeconfig file for the kube-proxy
+  shell: | 
+    kubectl config set-cluster kubernetes-the-hard-way \
+    --certificate-authority=/home/{{ ansible_user }}/cert/ca.crt \
+    --embed-certs=true \
+    --server=https://server.kubernetes.local:6443 \
+    --kubeconfig=/home/{{ ansible_user }}/configs/kube-proxy.kubeconfig
+
+    kubectl config set-credentials system:kube-proxy \
+      --client-certificate=/home/{{ ansible_user }}/cert/kube-proxy.crt \
+      --client-key=/home/{{ ansible_user }}/cert/kube-proxy.key \
+      --embed-certs=true \
+      --kubeconfig=/home/{{ ansible_user }}/configs/kube-proxy.kubeconfig
+
+    kubectl config set-context default \
+      --cluster=kubernetes-the-hard-way \
+      --user=system:kube-proxy \
+      --kubeconfig=/home/{{ ansible_user }}/configs/kube-proxy.kubeconfig
+
+    kubectl config use-context default \
+      --kubeconfig=/home/{{ ansible_user }}/configs/kube-proxy.kubeconfig
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Generate a kubeconfig file for the kube-controller-manager
+  shell: | 
+    kubectl config set-cluster kubernetes-the-hard-way \
+    --certificate-authority=/home/{{ ansible_user }}/cert/ca.crt \
+    --embed-certs=true \
+    --server=https://server.kubernetes.local:6443 \
+    --kubeconfig=/home/{{ ansible_user }}/configs/kube-controller-manager.kubeconfig
+
+    kubectl config set-credentials system:kube-controller-manager \
+      --client-certificate=/home/{{ ansible_user }}/cert/kube-controller-manager.crt \
+      --client-key=/home/{{ ansible_user }}/cert/kube-controller-manager.key \
+      --embed-certs=true \
+      --kubeconfig=/home/{{ ansible_user }}/configs/kube-controller-manager.kubeconfig
+
+    kubectl config set-context default \
+      --cluster=kubernetes-the-hard-way \
+      --user=system:kube-controller-manager \
+      --kubeconfig=/home/{{ ansible_user }}/configs/kube-controller-manager.kubeconfig
+
+    kubectl config use-context default \
+      --kubeconfig=/home/{{ ansible_user }}/configs/kube-controller-manager.kubeconfig
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Generate a kubeconfig file for the kube-scheduler 
+  shell: | 
+    kubectl config set-cluster kubernetes-the-hard-way \
+    --certificate-authority=/home/{{ ansible_user }}/cert/ca.crt \
+    --embed-certs=true \
+    --server=https://server.kubernetes.local:6443 \
+    --kubeconfig=/home/{{ ansible_user }}/configs/kube-scheduler.kubeconfig
+
+    kubectl config set-credentials system:kube-scheduler \
+      --client-certificate=/home/{{ ansible_user }}/cert/kube-scheduler.crt \
+      --client-key=/home/{{ ansible_user }}/cert/kube-scheduler.key \
+      --embed-certs=true \
+      --kubeconfig=/home/{{ ansible_user }}/configs/kube-scheduler.kubeconfig
+
+    kubectl config set-context default \
+      --cluster=kubernetes-the-hard-way \
+      --user=system:kube-scheduler \
+      --kubeconfig=/home/{{ ansible_user }}/configs/kube-scheduler.kubeconfig
+
+    kubectl config use-context default \
+      --kubeconfig=/home/{{ ansible_user }}/configs/kube-scheduler.kubeconfig
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Generate a kubeconfig file for the Kubernetes Admin 
+  shell: |
+    kubectl config set-cluster kubernetes-the-hard-way \
+      --certificate-authority=/home/{{ ansible_user }}/cert/ca.crt \
+      --embed-certs=true \
+      --server=https://127.0.0.1:6443 \
+      --kubeconfig=/home/{{ ansible_user }}/configs/admin.kubeconfig
+
+    kubectl config set-credentials admin \
+      --client-certificate=/home/{{ ansible_user }}/cert/admin.crt \
+      --client-key=/home/{{ ansible_user }}/cert/admin.key \
+      --embed-certs=true \
+      --kubeconfig=/home/{{ ansible_user }}/configs/admin.kubeconfig
+
+    kubectl config set-context default \
+      --cluster=kubernetes-the-hard-way \
+      --user=admin \
+      --kubeconfig=/home/{{ ansible_user }}/configs/admin.kubeconfig
+
+    kubectl config use-context default \
+      --kubeconfig=/home/{{ ansible_user }}/configs/admin.kubeconfig
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: | 
+    Fetch all configs to ansible controller 
+    Unfortunately it doesn't support recursive fetching
+  fetch:
+    src: /home/{{ ansible_user }}/configs/{{ item }}
+    dest: /tmp/{{ item }}
+  loop: 
+    - "admin.kubeconfig"
+    - "kube-proxy.kubeconfig"
+    - "node-0.kubeconfig"
+    - "node-1.kubeconfig"
+    - "kube-controller-manager.kubeconfig"
+    - "kube-scheduler.kubeconfig"
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Make sure kube-proxy, kubelet directory exists on node-0, node-1
+  file: 
+    path: /var/lib/{{ item }}
+    state: directory
+  loop:
+    - "kube-proxy"
+    - "kubelet"
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+  become: true
+
+- name: Copy kube-proxy kubeconfig to nodes 
+  copy: 
+    src: /tmp/kube-proxy.kubeconfig
+    dest: /var/lib/kube-proxy/kubeconfig
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+  become: true
+
+- name: Copy kubelet node-0.kubeconfig to node-0
+  copy: 
+    src: /tmp/node-0.kubeconfig
+    dest: /var/lib/kubelet/kubeconfig
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0]
+  become: true
+
+- name: Copy kubelet node-1.kubeconfig to node-1
+  copy: 
+    src: /tmp/node-1.kubeconfig
+    dest: /var/lib/kubelet/kubeconfig
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+  become: true
+
+- name: Copy kubeconfigs to server 
+  copy: 
+    src: /tmp/{{ item }}
+    dest: /
+  loop: 
+    - "admin.kubeconfig"
+    - "kube-controller-manager.kubeconfig"
+    - "kube-scheduler.kubeconfig"
+  when: inventory_hostname == groups['k8s_hard_server'][0]
+  become: true 

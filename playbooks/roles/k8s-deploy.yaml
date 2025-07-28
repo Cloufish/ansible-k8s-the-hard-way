@@ -21,3 +21,9 @@
   tasks:
   - ansible.builtin.import_role:
       name: certificate-authority
+
+- hosts: k8s_hard
+  tags: kubernetes-config-files
+  tasks:
+  - ansible.builtin.import_role:
+      name: kubernetes-config-files
