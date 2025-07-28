@@ -27,3 +27,9 @@
   tasks:
   - ansible.builtin.import_role:
       name: kubernetes-config-files
+
+- hosts: k8s_hard
+  tags: data-encryption-keys
+  tasks:
+  - ansible.builtin.import_role:
+      name: data-encryption-keys
