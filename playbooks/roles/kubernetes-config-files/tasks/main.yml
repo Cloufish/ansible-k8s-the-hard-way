@@ -129,6 +129,7 @@
   fetch:
     src: /home/{{ ansible_user }}/configs/{{ item }}
     dest: /tmp/{{ item }}
+    flat: true
   loop: 
     - "admin.kubeconfig"
     - "kube-proxy.kubeconfig"

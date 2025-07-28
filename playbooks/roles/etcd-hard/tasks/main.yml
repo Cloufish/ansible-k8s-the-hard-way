@@ -10,18 +10,21 @@
   fetch: 
     src: /home/{{ ansible_user }}/downloads/controller/etcd
     dest: /tmp/etcd
+    flat: true
   when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
 
 - name: Fetch etcdctl
   fetch: 
     src: /home/{{ ansible_user }}/downloads/client/etcdctl
     dest: /tmp/etcdctl
+    flat: true
   when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
 
 - name: Copy etcd to server
   copy:
     src: "/tmp/{{ item }}"
     dest: /usr/local/bin/
+    mode: "0755"
   become: true 
   loop: 
     - "etcd"

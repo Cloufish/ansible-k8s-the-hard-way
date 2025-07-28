@@ -51,6 +51,7 @@
   fetch:
     src: /home/{{ ansible_user }}/cert/{{ item }}.crt
     dest: /tmp/{{ item }}.crt
+    flat: true
   loop: 
     - "admin"
     - "node-0"
@@ -69,6 +70,7 @@
   fetch:
     src: /home/{{ ansible_user }}/cert/{{ item }}.key
     dest: /tmp/{{ item }}.key
+    flat: true
   loop: 
     - "admin"
     - "node-0"
@@ -87,6 +89,7 @@
   fetch:
     src: /home/{{ ansible_user }}/cert/{{ item }}.csr
     dest: /tmp/{{ item }}.csr
+    flat: true
   loop: 
     - "admin"
     - "node-0"

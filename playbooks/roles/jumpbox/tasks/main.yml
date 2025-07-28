@@ -184,6 +184,7 @@
     src: /home/{{ ansible_user }}/downloads/client/kubectl
     dest: /usr/local/bin/
     remote_src: true
+    mode: "0755"
   become: true
 
 - name: Set execute permission on each file

@@ -39,3 +39,9 @@
   tasks:
   - ansible.builtin.import_role:
       name: etcd-hard
+
+- hosts: k8s_hard
+  tags: k8s-hard-controllers
+  tasks:
+  - ansible.builtin.import_role:
+      name: k8s-hard-controllers
