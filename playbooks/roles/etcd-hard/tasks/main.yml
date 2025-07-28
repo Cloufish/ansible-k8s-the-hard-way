@@ -1,0 +1,71 @@
+---
+- name: Copy etcd.service to server
+  template:
+    src: etcd.service
+    dest: /etc/systemd/system/
+  become: true 
+  when: inventory_hostname == groups['k8s_hard_server'][0]
+
+- name: Fetch etcd
+  fetch: 
+    src: /home/{{ ansible_user }}/downloads/controller/etcd
+    dest: /tmp/etcd
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Fetch etcdctl
+  fetch: 
+    src: /home/{{ ansible_user }}/downloads/client/etcdctl
+    dest: /tmp/etcdctl
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Copy etcd to server
+  copy:
+    src: "/tmp/{{ item }}"
+    dest: /usr/local/bin/
+  become: true 
+  loop: 
+    - "etcd"
+    - "etcdctl"
+  when: inventory_hostname == groups['k8s_hard_server'][0]
+
+- name: Ensure /etc/etcd and /var/lib/etcd directories exists
+  file: 
+    path: "{{ item }}"
+    state: directory
+  become: true
+  loop:
+    - "/etc/etcd"
+    - "/var/lib/etcd"
+  when: inventory_hostname == groups['k8s_hard_server'][0]
+
+- name: Modify permissions to 700 in /var/lib/etcd
+  file: 
+    path: /var/lib/etcd
+    mode: '0700'
+    state: directory
+  become: true
+  when: inventory_hostname == groups['k8s_hard_server'][0]
+
+- name: Copy ca.crt kube-api-server.key kube-api-server.crt
+  copy: 
+    src: /tmp/{{ item }}
+    dest: /etc/etcd 
+  become: true
+  loop: 
+    - "ca.crt"
+    - "kube-api-server.key"
+    - "kube-api-server.crt"
+  when: inventory_hostname == groups['k8s_hard_server'][0]
+
+- name: Reload daemon
+  shell: systemctl daemon-reload
+  become: true
+  when: inventory_hostname == groups['k8s_hard_server'][0]
+
+- name: Enable and start etcd
+  systemd: 
+    name: etcd
+    state: started
+    enabled: true
+  become: true
+  when: inventory_hostname == groups['k8s_hard_server'][0]

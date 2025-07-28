@@ -33,3 +33,9 @@
   tasks:
   - ansible.builtin.import_role:
       name: data-encryption-keys
+
+- hosts: k8s_hard
+  tags: etcd-hard
+  tasks:
+  - ansible.builtin.import_role:
+      name: etcd-hard
