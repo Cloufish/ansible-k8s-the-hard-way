@@ -10,7 +10,7 @@ The `jumpbox` machine is never used to run `scp` command. Instead, I used `fetch
 
 I tried to do as much as I can using Ansible modules, and not use shell, but sometimes, like with `openssl`, `ipconfig` it's far easier to do it in shell
 
-```
+```bash
 k8s@server:~$ etcdctl get /registry/secrets/default/kubernetes-the-hard-way | hexdump -C
 00000000  2f 72 65 67 69 73 74 72  79 2f 73 65 63 72 65 74  |/registry/secret|
 00000010  73 2f 64 65 66 61 75 6c  74 2f 6b 75 62 65 72 6e  |s/default/kubern|
@@ -37,7 +37,7 @@ k8s@server:~$ etcdctl get /registry/secrets/default/kubernetes-the-hard-way | he
 0000015a
 ```
 
-```
+```bash
 k8s@hard-k8s-jumpbox:~$ kubectl get all
 NAME                         READY   STATUS    RESTARTS   AGE
 pod/nginx-669f67b79f-qv8jf   1/1     Running   0          11m
