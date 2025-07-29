@@ -57,3 +57,9 @@
   tasks:
   - ansible.builtin.import_role:
       name: configuring-kubectl
+  
+- hosts: k8s_hard
+  tags: pod-network-routes
+  tasks:
+  - ansible.builtin.import_role:
+      name: pod-network-routes

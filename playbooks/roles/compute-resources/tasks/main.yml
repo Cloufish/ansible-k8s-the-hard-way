@@ -43,11 +43,17 @@
   become: true
   systemd:
     name: systemd-resolved.service
-    enabled: false
-    state: stopped
+    enabled: true
+    state: started
 
 - name: remove resolv.conf
   become: true
   file:
     path: /etc/resolv.conf
     state: absent
+
+- name: Add DNS to resolv.conf that resolves /etc/hosts
+  become: true
+  ansible.builtin.template:
+    src: resolv.conf
+    dest: /etc/resolv.conf

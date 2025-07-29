@@ -1,1 +1,19 @@
 ---
+- name: Add routes to nodes
+  shell: |
+    ip route add 10.200.0.0/24 via 192.168.1.172
+    ip route add 10.200.1.0/24 via 192.168.1.173
+  become: true
+  when: inventory_hostname == groups['k8s_hard_server'][0]
+
+- name: Add routes to nodes
+  shell: |
+    ip route add 10.200.1.0/24 via 192.168.1.173
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0]
+
+- name: Add routes to nodes
+  shell: |
+    ip route add 10.200.0.0/24 via 192.168.1.172
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][1]
