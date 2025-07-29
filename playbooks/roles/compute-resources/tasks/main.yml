@@ -20,3 +20,34 @@
   file: 
     path: rm /home/{{ ansible_user }}/hostnames.txt
     state: absent
+
+- name: Set server hostname
+  ansible.builtin.hostname:
+    name: server
+  become: true
+  when: inventory_hostname == groups['k8s_hard_server'][0]
+
+- name: Set server hostname
+  ansible.builtin.hostname:
+    name: node-0
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0]
+
+- name: Set server hostname
+  ansible.builtin.hostname:
+    name: node-1
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: disable systemd-resolved service to prevent /etc/hosts being overwritten
+  become: true
+  systemd:
+    name: systemd-resolved.service
+    enabled: false
+    state: stopped
+
+- name: remove resolv.conf
+  become: true
+  file:
+    path: /etc/resolv.conf
+    state: absent

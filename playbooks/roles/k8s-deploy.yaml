@@ -51,3 +51,9 @@
   tasks:
   - ansible.builtin.import_role:
       name: k8s-hard-workers
+
+- hosts: k8s_hard_jumpbox
+  tags: configuring-kubectl
+  tasks:
+  - ansible.builtin.import_role:
+      name: configuring-kubectl

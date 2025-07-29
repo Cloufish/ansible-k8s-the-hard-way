@@ -144,11 +144,17 @@
     dest: /var/lib/kubelet/kubelet.key
   when: inventory_hostname == groups['k8s_hard_worker_nodes'][1]
   become: true
-  
+
+- name: Make sure /var/lib/kubernetes/ exists
+  file:
+    path:  /var/lib/kubernetes/
+    state: directory
+  become: true
+
 - name: Copy appropriate certificates to server machine 
   copy: 
     src: /tmp/{{ item }}
-    dest: /
+    dest: /var/lib/kubernetes/
   become: true
   loop:
     - "ca.key"

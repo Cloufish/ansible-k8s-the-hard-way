@@ -174,8 +174,8 @@
 
 - name: Load and configure the br-netfilter kernel module
   shell:
-    modprobe br-netfilter
-    echo "br-netfilter" >> /etc/modules-load.d/modules.conf
+    modprobe br-netfilter nf_track_tcp nf_conntrack
+    echo "br-netfilter nf_track_tcp nf_conntrack" > /etc/modules-load.d/modules.conf
   become: true
   when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
         inventory_hostname == groups['k8s_hard_worker_nodes'][1]

@@ -1,0 +1,17 @@
+---
+- name: Generate a kubeconfig file suitable for authenticating as the admin user 
+  shell: |
+    kubectl config set-cluster kubernetes-the-hard-way \
+    --certificate-authority=/home/{{ ansible_user }}/cert/ca.crt \
+    --embed-certs=true \
+    --server=https://server.kubernetes.local:6443
+
+    kubectl config set-credentials admin \
+      --client-certificate=/home/{{ ansible_user }}/cert/admin.crt \
+      --client-key=/home/{{ ansible_user }}/cert/admin.key
+
+    kubectl config set-context kubernetes-the-hard-way \
+      --cluster=kubernetes-the-hard-way \
+      --user=admin
+
+    kubectl config use-context kubernetes-the-hard-way
