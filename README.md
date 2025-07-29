@@ -5,7 +5,7 @@
 3. Run command `ansible-playbook -i inventory.ini  playbooks/roles/k8s-deploy.yaml`
 
 ## Description
-This repository was for me for a challenge of setting up k8s-the-hard-way with Ansible
+This repository was for me a challenge of setting up k8s-the-hard-way with Ansible
 The `jumpbox` machine is never used to run `scp` command. Instead, I used `fetch` ansible module with `flat: true` parameter, and then copied the files to the corresponding virtual machines. 
 
 I tried to do as much as I can using Ansible modules, and not use shell, but sometimes, like with `openssl`, `ipconfig` it's far easier to do it in shell
