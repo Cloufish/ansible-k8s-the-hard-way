@@ -138,7 +138,7 @@
     dest: /
   become: true
 
-- name: Apply kube-apiserver-to-kubelet.yaml ClusterRole
+- name: Apply kube-apiserver-to-kubelet.yaml ClusterRole # Fix this
   kubernetes.core.k8s:
     state: present
     src: /kube-apiserver-to-kubelet.yaml

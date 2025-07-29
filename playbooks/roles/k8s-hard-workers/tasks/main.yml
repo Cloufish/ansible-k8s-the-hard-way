@@ -1,1 +1,262 @@
 ---
+- name: Fetch worker binaries
+  fetch:
+    src: /home/{{ ansible_user }}/downloads/worker/{{ item }}
+    dest: /tmp/{{ item }}
+    flat: true
+  loop: 
+    - "containerd"
+    - "containerd-shim-runc-v2"
+    - "containerd-stress"
+    - "crictl"
+    - "ctr"
+    - "kube-proxy"
+    - "kubelet"
+    - "runc"
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+  
+- name: Fetch client binaries
+  fetch:
+    src: /home/{{ ansible_user }}/downloads/client/{{ item }}
+    dest: /tmp/{{ item }}
+    flat: true
+  loop: 
+    - "kubectl"
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+  
+- name: Fetch cni-plugins
+  fetch:
+    src: /home/{{ ansible_user }}/downloads/cni-plugins/{{ item }}
+    dest: /tmp/{{ item }}
+    flat: true
+  loop: 
+    - "bandwidth"  
+    - "dhcp"   
+    - "firewall"     
+    - "host-local"  
+    - "loopback"  
+    - "portmap"  
+    - "sbr"     
+    - "tap"     
+    - "vlan"
+    - "bridge"     
+    - "dummy"  
+    - "host-device"  
+    - "ipvlan"     
+    - "macvlan"   
+    - "ptp"      
+    - "static"  
+    - "tuning"  
+    - "vrf"
+  when: inventory_hostname == groups['k8s_hard_jumpbox'][0]
+
+- name: Install socat, conntrack, ipset, kmod
+  become: true
+  ansible.builtin.apt:
+    pkg:
+      - socat
+      - conntrack
+      - ipset
+      - kmod
+    state: present
+    force_apt_get: true
+    update_cache: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+# Following steps will disable swap
+- name: Remove swap entry from /etc/fstab
+  lineinfile:
+    path: /etc/fstab
+    regexp: '^/swap.img'
+    line: '#/swap.img'
+    state: absent
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Disable swap through CLI (swapoff)
+  become: true
+  shell: "swapoff --all" 
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Disable swap through CLI, (/etc/sysctl.conf)
+  become: true
+  lineinfile: 
+    path: /etc/sysctl.conf
+    insertafter: EOF 
+    line: vm.swapiness = 0
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Make sure following directories exists
+  file:
+    path: "{{ item }}"
+    state: directory
+  become: true
+  loop: 
+    - "/etc/cni/net.d"
+    - "/opt/cni/bin"
+    - "/var/lib/kubelet"
+    - "/var/lib/kube-proxy"
+    - "/var/lib/kubernetes"
+    - "/var/run/kubernetes"
+    - "/etc/containerd"
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+  
+- name: Move worker binaries
+  copy: 
+    src: /tmp/{{ item }}
+    dest: /usr/local/bin/{{ item }}
+    mode: "0755"
+  loop:
+    - "crictl"
+    - "kube-proxy"
+    - "kubelet"
+    - "runc"
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Move worker binaries to /bin/
+  copy: 
+    src: /tmp/{{ item }}
+    dest: /bin/{{ item }}
+    mode: "0755"
+  loop:
+    - "containerd"
+    - "containerd-shim-runc-v2"
+    - "containerd-stress"
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Move cni-plugins /opt/cni/bin/
+  copy: 
+    src: /tmp/{{ item }}
+    dest: /opt/cni/bin/{{ item }}
+    mode: "0755"
+  loop: 
+    - "bandwidth"  
+    - "dhcp"   
+    - "firewall"     
+    - "host-local"  
+    - "loopback"  
+    - "portmap"  
+    - "sbr"     
+    - "tap"     
+    - "vlan"
+    - "bridge"     
+    - "dummy"  
+    - "host-device"  
+    - "ipvlan"     
+    - "macvlan"   
+    - "ptp"      
+    - "static"  
+    - "tuning"  
+    - "vrf"
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Copy cni network configuration
+  template: 
+    src: "{{ item }}"
+    dest: /etc/cni/net.d/{{ item }}
+  become: true
+  loop: 
+    - 10-bridge.j2
+    - 99-loopback.conf
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Load and configure the br-netfilter kernel module
+  shell:
+    modprobe br-netfilter
+    echo "br-netfilter" >> /etc/modules-load.d/modules.conf
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Set system configuration for Kubernetes Networking 
+  become: true
+  template: 
+    src: 99-kubernetes-cri.conf 
+    dest: /etc/sysctl.d/99-kubernetes-cri.conf
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Apply sysctl config
+  shell:  sysctl -p /etc/sysctl.d/99-kubernetes-cri.conf
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Move containerd config file
+  template: 
+    src: containerd-config.toml
+    dest: /etc/containerd/config.toml
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Move containerd service file
+  template: 
+    src: containerd.service
+    dest: /etc/systemd/system/
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Move kubelet config file
+  template: 
+    src: kubelet-config.yaml
+    dest: /var/lib/kubelet/kubelet-config.yaml
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Move kubelet service file
+  template: 
+    src: kubelet.service
+    dest: /etc/systemd/system/
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Move kube-proxy config file
+  template: 
+    src: kube-proxy-config.yaml
+    dest:  /var/lib/kube-proxy/kube-proxy-config.yaml
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Move kube-proxy service file
+  template: 
+    src: kube-proxy.service
+    dest: /etc/systemd/system/
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Daemon-Reload
+  shell: systemctl daemon-reload
+  become: true
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]
+
+- name: Enable k8s server services
+  systemd: 
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  become: true
+  loop: 
+    - "containerd"
+    - "kubelet"
+    - "kube-proxy"
+  when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
+        inventory_hostname == groups['k8s_hard_worker_nodes'][1]

@@ -112,7 +112,7 @@
 - name: Copy ca.crt to each node
   copy: 
     src: /tmp/ca.crt
-    dest: /var/lib/kubelet
+    dest: /var/lib/kubelet/ca.crt
   when: inventory_hostname == groups['k8s_hard_worker_nodes'][0] or
         inventory_hostname == groups['k8s_hard_worker_nodes'][1]
   become: true
